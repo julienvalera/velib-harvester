@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "velib-harvester"
+version = "0.1.0"
+description = ""
+authors = ["Julien VALERA <julienpierre.valera@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7.12"
+prefect = "^0.15.7"
+requests = "^2.26.0"
+pydantic = "^1.8.2"
+cloudpickle = "^2.0.0"
+boto3 = "^1.19.12"
+docker-compose = "^1.29.2"
+
+[tool.poetry.dev-dependencies]
+black = "^21.10b0"
+flake8 = "^4.0.1"
+pylint = "^2.11.1"
+bandit = "^1.7.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 79
+exclude = '''
+(
+    (.git)
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
