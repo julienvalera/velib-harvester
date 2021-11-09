@@ -1,0 +1,2 @@
+class FetchStationStatusException(Exception):
+    pass
