@@ -8,6 +8,8 @@ import prefect
 import requests
 from prefect import Flow, case, task
 from prefect.engine.results import LocalResult
+from prefect.run_configs import LocalRun
+from prefect.storage import Module
 from prefect.tasks.aws.s3 import S3Upload
 from pydantic.main import BaseModel
 
@@ -18,7 +20,7 @@ VELIB_API_URL = (
     "https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole"
 )
 LOCAL_RESULT_PATH = Path("app/results.txt")
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 
 logger = prefect.context.get("logger")
 
@@ -26,6 +28,8 @@ local_result = LocalResult(
     dir=str(LOCAL_RESULT_PATH.parent),
     location=str(LOCAL_RESULT_PATH.name),
 )
+
+module_storage = Module(module=__name__)
 
 
 class S3UploadVelibData(S3Upload):
@@ -38,7 +42,7 @@ class S3UploadVelibData(S3Upload):
         super().__init__(bucket=bucket, boto_kwargs=boto_kwargs, **kwargs)
 
     def run(self, data: str, **kwargs: Any) -> str:
-        key_name = self.define_s3_key_name(data["lastUpdatedOther"])
+        key_name = self.define_s3_key_name(data["last_updated_other"])
         super().run(data=json.dumps(data), key=key_name, **kwargs)
 
     def define_s3_key_name(self, last_update: int) -> str:
@@ -102,7 +106,7 @@ def flow_should_run(station_information: Dict[str, Any]) -> bool:
             f"No result output exists yet. Create one with {previous_timestamp} as a default value."
         )
         local_result.write(previous_timestamp)
-    current_timestamp = station_information["lastUpdatedOther"]
+    current_timestamp = station_information["last_updated_other"]
     should_run = int(previous_timestamp) < int(current_timestamp)
     if not should_run:
         logger.info(
@@ -113,7 +117,7 @@ def flow_should_run(station_information: Dict[str, Any]) -> bool:
     return should_run
 
 
-with Flow("Velib Harvester") as flow:
+with Flow("Velib Harvester", storage=module_storage) as flow:
     # Load Velib station information
     station_information_json = fetch_station_information_data()
     station_information = validate_schema(
@@ -146,3 +150,5 @@ with Flow("Velib Harvester") as flow:
         # Upload data to S3 bucket
         upload_to_s3 = S3UploadVelibData(bucket=S3_BUCKET_NAME)
         upload_to_s3(data=merged_data)
+
+flow.run_config = LocalRun(labels=["dev"])
